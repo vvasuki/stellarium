@@ -960,4 +960,3 @@ void get_triton_axis_rot(const double jde, double *raDeg, double *decDeg, double
 		+ 0.01*sin(9.0*Nrot[7]);
 }
 #endif
-

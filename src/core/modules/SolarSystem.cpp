@@ -920,6 +920,9 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			qCritical() << "ERROR in section " << secname << ": can't find posfunc " << coordFuncName << " for " << englishName;
 			exit(-1);
 		}
+//		if (axisFuncName=="mercury_special"){
+//			//axisFunc =
+//		}
 
 		// Create the Solar System body and add it to the list
 		QString type = pd.value(secname+"/type").toString();
