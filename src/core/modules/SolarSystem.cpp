@@ -661,14 +661,15 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			}
 		}
 
-		const QString funcName = pd.value(secname+"/coord_func").toString();
-		// qDebug() << "englishName:" << englishName << ", parent:" << strParent <<  ", coord_func:" << funcName;
+		const QString coordFuncName = pd.value(secname+"/coord_func").toString();
+		const QString axisFuncName = pd.value(secname+"/axis_func").toString(); // TODO: Make sense out of it!
+		// qDebug() << "englishName:" << englishName << ", parent:" << strParent <<  ", coord_func:" << coordFuncName;
 		posFuncType posfunc=Q_NULLPTR;
 		void* orbitPtr=Q_NULLPTR;
 		OsculatingFunctType *osculatingFunc = Q_NULLPTR;
 		bool closeOrbit = pd.value(secname+"/closeOrbit", true).toBool();
 
-		if (funcName=="ell_orbit")
+		if (coordFuncName=="ell_orbit")
 		{
 			// GZ TODO: It seems ell_orbit is only used for planet moons. Just assert eccentricity<1 and remove a few extra calculations?
 			// Read the orbital elements
@@ -767,7 +768,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			orbitPtr = orb;
 			posfunc = &ellipticalOrbitPosFunc;
 		}
-		else if (funcName=="comet_orbit")
+		else if (coordFuncName=="comet_orbit")
 		{
 			// Read the orbital elements
 			// orbit_PericenterDistance,orbit_SemiMajorAxis: given in AU
@@ -844,6 +845,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			const double parent_rot_asc_node = parent->getParent() ? parent->getRotAscendingNode() : 0.0;
 			double parent_rot_j2000_longitude = 0.0;
 						if (parent->getParent()) {
+							qDebug() << "Really? A comet orbiting " << pd.value("parent") << "has a greatparent?";
 							const double c_obl = cos(parentRotObliquity);
 							const double s_obl = sin(parentRotObliquity);
 							const double c_nod = cos(parent_rot_asc_node);
@@ -872,7 +874,6 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			orbitPtr = orb;
 			posfunc = &cometOrbitPosFunc;
 		}
-
 		else {
 			static const QMap<QString, posFuncType>posfuncMap={
 				{ "sun_special",       &get_sun_helio_coordsv},
@@ -915,15 +916,17 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 				{ "saturn_special",    &get_saturn_helio_osculating_coords},
 				{ "uranus_special",    &get_uranus_helio_osculating_coords},
 				{ "neptune_special",   &get_neptune_helio_osculating_coords}};
-			posfunc=posfuncMap.value(funcName, Q_NULLPTR);
-			osculatingFunc=osculatingMap.value(funcName, Q_NULLPTR);
+			posfunc=posfuncMap.value(coordFuncName, Q_NULLPTR);
+			osculatingFunc=osculatingMap.value(coordFuncName, Q_NULLPTR);
 		}
-
 		if (posfunc==Q_NULLPTR)
 		{
-			qCritical() << "ERROR in section " << secname << ": can't find posfunc " << funcName << " for " << englishName;
+			qCritical() << "ERROR in section " << secname << ": can't find posfunc " << coordFuncName << " for " << englishName;
 			exit(-1);
 		}
+//		if (axisFuncName=="mercury_special"){
+//			//axisFunc =
+//		}
 
 		// Create the Solar System body and add it to the list
 		QString type = pd.value(secname+"/type").toString();
@@ -1099,11 +1102,21 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 		// Use more common planet North pole data if available
 		// NB: N pole as defined by IAU (NOT right hand rotation rule)
 		// NB: J2000 epoch
-		const double J2000NPoleRA = pd.value(secname+"/rot_pole_ra", 0.).toDouble()*M_PI/180.;
-		const double J2000NPoleDE = pd.value(secname+"/rot_pole_de", 0.).toDouble()*M_PI/180.;
+		// GZ TODO for 0.20: Make this more flexible with changing axes. and have special functions for more complicated axes.
+		double J2000NPoleRA  = pd.value(secname+"/rot_pole_ra", 0.).toDouble()*M_PI/180.;
+		double J2000NPoleRA1 = pd.value(secname+"/rot_pole_ra1", 0.).toDouble()*M_PI/180.;
+		double J2000NPoleDE  = pd.value(secname+"/rot_pole_de", 0.).toDouble()*M_PI/180.;
+		double J2000NPoleDE1 = pd.value(secname+"/rot_pole_de1", 0.).toDouble()*M_PI/180.;
+		double J2000NPoleW0  = pd.value(secname+"/rot_pole_W0", 0.).toDouble()*M_PI/180.;
+		double J2000NPoleW1  = pd.value(secname+"/rot_pole_W1", 0.).toDouble()*M_PI/180.;
+
+		double rotPeriod=pd.value(secname+"/rot_periode", pd.value(secname+"/orbit_Period", 24.).toDouble()).toDouble()/24.;
+		double rotOffset=pd.value(secname+"/rot_rotation_offset",0.).toDouble();
 
 		if(J2000NPoleRA || J2000NPoleDE)
 		{
+			// Old solution: Make this once for J2000.
+			// New in 0.18: Repeat this block in planet::update() if required.
 			Vec3d J2000NPole;
 			StelUtils::spheToRect(J2000NPoleRA,J2000NPoleDE,J2000NPole);
 
@@ -1117,18 +1130,33 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 
 			// qDebug() << "\tCalculated rotational obliquity: " << rotObliquity*180./M_PI << endl;
 			// qDebug() << "\tCalculated rotational ascending node: " << rotAscNode*180./M_PI << endl;
+
+			if (J2000NPoleW0 >0)
+			{
+				// this is just another name for offset...
+				rotOffset=J2000NPoleW0;
+			}
+			if (J2000NPoleW1 >0)
+			{
+				// this is just another expression for rotational speed.
+				rotPeriod=360.0/J2000NPoleW1;
+				// qDebug() << "\t" << englishName << ": Calculated rotational speed: " << rotPeriod*180./M_PI << endl;
+			}
 		}
 
 		// rot_periode given in hours, or orbit_Period given in days, orbit_visualization_period in days. The latter should have a meaningful default.
 		p->setRotationElements(
-			pd.value(secname+"/rot_periode", pd.value(secname+"/orbit_Period", 1.).toDouble()*24.).toFloat()/24.f,
-			pd.value(secname+"/rot_rotation_offset",0.).toFloat(),
+			rotPeriod,
+			rotOffset,
 			pd.value(secname+"/rot_epoch", J2000).toDouble(),
 			rotObliquity,
 			rotAscNode,
-			pd.value(secname+"/rot_precession_rate",0.).toFloat()*M_PIf/(180*36525),
-			pd.value(secname+"/orbit_visualization_period", fabs(pd.value(secname+"/orbit_Period", 1.).toDouble())).toDouble()); // this is given in days...
-
+			//pd.value(secname+"/rot_precession_rate",0.).toDouble()*M_PI/(180*36525),
+			J2000NPoleRA,
+			J2000NPoleRA1,
+			J2000NPoleDE,
+			J2000NPoleDE1,
+			pd.value(secname+"/orbit_visualization_period", fabs(pd.value(secname+"/orbit_Period", 1.).toDouble())).toDouble()); // TODO; Get rid of the last parameter!
 
 		if (pd.value(secname+"/rings", 0).toBool()) {
 			const float rMin = pd.value(secname+"/ring_inner_size").toFloat()/AUf;
