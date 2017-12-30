@@ -362,7 +362,6 @@ public:
 	double getCurrentAxisDE(void) const {return re.currentAxisDE; }
 
 
-
 	//! Compute the position in the parent Planet coordinate system
 	virtual void computePosition(const double dateJDE);
 
