@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/ObservingLists">
+	<file>btObservingLists-on.png</file>
+	<file>btObservingLists-off.png</file>
+    </qresource>
+</RCC>

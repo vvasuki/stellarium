@@ -375,6 +375,7 @@ ADD_PLUGIN(SolarSystemEditor 1)
 ADD_PLUGIN(Supernovae 1)
 ADD_PLUGIN(TextUserInterface 1)
 ADD_PLUGIN(TelescopeControl 1)
+ADD_PLUGIN(ObservingLists 1)
 
 ########## Static plugins need to define includes and libraries
 ########## for the compilation of Stellarium itself
