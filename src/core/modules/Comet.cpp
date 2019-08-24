@@ -162,7 +162,7 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 	if (flags&ObjectType && getPlanetType()!=isUNDEFINED)
 	{
 		QString cometType = qc_("non-periodic", "type of comet");
-		if (((CometOrbit *)orbitPtr)->getEccentricity() != 1.0)
+		if ((static_cast<CometOrbit *>(orbitPtr))->getEccentricity() != 1.0)
 		{
 			// Parabolic and hyperbolic comets don't have semi-major axis of the orbit. We have comet with elliptic orbit.
 			cometType = qc_("periodic", "type of comet");
@@ -192,8 +192,8 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 	QString distAU, distKM;
 	if (flags&Distance)
 	{
-		double hdistanceAu = getHeliocentricEclipticPos().length();
-		double hdistanceKm = AU * hdistanceAu;
+		const double hdistanceAu = getHeliocentricEclipticPos().length();
+		const double hdistanceKm = AU * hdistanceAu;
 		// TRANSLATORS: Unit of measure for distance - astronomical unit
 		QString au = qc_("AU", "distance, astronomical unit");
 		bool useKM = true;
@@ -210,8 +210,8 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 		}
 		oss << QString("%1: %2 %3 (%4 %5)").arg(q_("Distance from Sun"), distAU, au, distKM, useKM ? km : Mkm) << "<br />";
 
-		double distanceAu = getJ2000EquatorialPos(core).length();
-		double distanceKm = AU * distanceAu;
+		const double distanceAu = getJ2000EquatorialPos(core).length();
+		const double distanceKm = AU * distanceAu;
 		if (distanceAu < 0.1)
 		{
 			distAU = QString::number(distanceAu, 'f', 6);
@@ -232,8 +232,8 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 		// TRANSLATORS: Unit of measure for speed - kilometers per second
 		QString kms = qc_("km/s", "speed");
 
-		Vec3d orbitalVel=getEclipticVelocity();
-		double orbVel=orbitalVel.length();
+		const Vec3d orbitalVel=getEclipticVelocity();
+		const double orbVel=orbitalVel.length();
 		if (orbVel>0.)
 		{ // AU/d * km/AU /24
 			oss << QString("%1: %2 %3").arg(q_("Orbital velocity")).arg(orbVel* AU/86400., 0, 'f', 3).arg(kms) << "<br />";
@@ -243,14 +243,14 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 	if (flags&Extra)
 	{
 		// If semi-major axis not zero then calculate and display orbital period for comet in days
-		double siderealPeriod = getSiderealPeriod();
+		const double siderealPeriod = getSiderealPeriod();
 		if (siderealPeriod>0.0)
 		{
 			// Sidereal (orbital) period for comets in Julian years (symbol: a)
 			oss << QString("%1: %2 a").arg(q_("Sidereal period"), QString::number(siderealPeriod/365.25, 'f', 3)) << "<br />";
 		}
 
-		double siderealPeriodCurrentPlanet = core->getCurrentPlanet()->getSiderealPeriod();
+		const double siderealPeriodCurrentPlanet = core->getCurrentPlanet()->getSiderealPeriod();
 		if (siderealPeriodCurrentPlanet > 0.0 && siderealPeriod > 0.0 && core->getCurrentPlanet()->getPlanetType()==Planet::isPlanet && getPlanetType()!=Planet::isArtificial && getPlanetType()!=Planet::isStar && getPlanetType()!=Planet::isMoon)
 		{
 			double sp = qAbs(1/(1/siderealPeriodCurrentPlanet - 1/siderealPeriod));
@@ -278,7 +278,7 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 	}
 
 
-	if ((flags&Size) && (tailFactors[0]>0.0f))
+	if ((flags&Size) && (tailFactors[0]>0.0))
 	{
 		// GZ: Add estimates for coma diameter and tail length.
 		QString comaEst = q_("Coma diameter (estimate)");
@@ -328,7 +328,7 @@ QVariantMap Comet::getInfoMap(const StelCore *core) const
 
 double Comet::getSiderealPeriod() const
 {
-	double semiMajorAxis=((CometOrbit*)orbitPtr)->getSemimajorAxis();
+	double semiMajorAxis=(static_cast<CometOrbit*>(orbitPtr))->getSemimajorAxis();
 	return ((semiMajorAxis>0) ? StelUtils::calculateSiderealPeriod(semiMajorAxis) : 0.);
 }
 
