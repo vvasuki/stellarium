@@ -753,11 +753,11 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 				// For compute the Moon age we use geocentric coordinates
 				QString moonPhase = "";
 				StelCore* core1 = StelApp::getInstance().getCore(); // FIXME: Why do we need a different reference to the (singular) core here?
+				const double eclJDE = earth->getRotObliquity(core1->getJDE());
+				double ra_equ, dec_equ, lambdaMoon, lambdaSun, betaMoon, betaSun, raSun, deSun;
 				const bool state = core1->getUseTopocentricCoordinates();
 				core1->setUseTopocentricCoordinates(false);
 				core1->update(0); // enforce update cache!
-				const double eclJDE = earth->getRotObliquity(core1->getJDE());
-				double ra_equ, dec_equ, lambdaMoon, lambdaSun, betaMoon, betaSun, raSun, deSun;
 				StelUtils::rectToSphe(&ra_equ,&dec_equ, getEquinoxEquatorialPos(core1));
 				StelUtils::equToEcl(ra_equ, dec_equ, eclJDE, &lambdaMoon, &betaMoon);
 				StelUtils::rectToSphe(&raSun,&deSun, ssystem->getSun()->getEquinoxEquatorialPos(core1));
@@ -1487,7 +1487,7 @@ void Planet::computeTransMatrix(double JD, double JDE)
 			// The new model directly gives a matrix into ICRF, which is practically identical and called VSOP87 for us.
 			setRotEquatorialToVsop87(Mat4d::zrotation(re_ascendingNode) * Mat4d::xrotation(re_obliquity));
 			addToExtraInfoString(QString("DEBUG: useICRF: new re.obliquity=%1, re.ascendingNode=%2").arg(StelUtils::radToDecDegStr(re_obliquity)).arg(StelUtils::radToDecDegStr(re_ascendingNode)));
-		}		
+		}
 		else
 		{
 		// 0.20+: This used to be the old solution. Those axes were defined w.r.t. J2000 Ecliptic (VSOP87)
