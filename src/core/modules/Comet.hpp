@@ -139,7 +139,7 @@ private:
 	bool nameIsProvisionalDesignation;
 
 	//GZ Tail additions
-	Vec2d tailFactors; // result of latest call to getComaDiameterAndTailLengthAU(); Results cached here for infostring. [0]=Coma diameter, [1] gas tail length.
+	Vec2f tailFactors; // result of latest call to getComaDiameterAndTailLengthAU(); Results cached here for infostring. [0]=Coma diameter, [1] gas tail length.
 	bool tailActive;		//! true if there is a tail long enough to be worth drawing. Drawing tails is quite costly.
 	bool tailBright;		//! true if tail is bright enough to draw.
 	double deltaJDEtail;            //! like deltaJDE, but time difference between tail geometry updates.
