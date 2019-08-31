@@ -952,6 +952,7 @@ QVariantMap Planet::getInfoMap(const StelCore *core) const
 		map.insert("subsolar_point_b", (bop+bopp)*M_180_PI);
 		map.insert("colongitude", StelUtils::fmodpos(450.0*M_PI_180-lop-lopp, M_PI*2.0)*M_180_PI);
 	}
+
 	return map;
 }
 
