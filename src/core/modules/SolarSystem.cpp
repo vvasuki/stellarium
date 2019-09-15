@@ -830,6 +830,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 					time_at_pericenter = epoch - mean_anomaly / meanMotion;
 				}
 			}
+
 			const double orbitGoodDays=pd.value(secname+"/orbit_good", 1000).toDouble();
 			const double inclination = pd.value(secname+"/orbit_Inclination", 0.0).toDouble()*(M_PI/180.0);
 			const double arg_of_pericenter = pd.value(secname+"/orbit_ArgOfPericenter", 0.0).toDouble()*(M_PI/180.0);
