@@ -743,11 +743,7 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 				elo = StelUtils::radToDmsStr(elongation, true);
 			}
 
-			oss << QString("%1: %2").arg(q_("Phase angle"), pha) << "<br />";
-			oss << QString("%1: %2").arg(q_("Elongation"), elo) << "<br />";
-			oss << QString("%1: %2%").arg(q_("Illuminated"), QString::number(getPhase(observerHelioPos) * 100.f, 'f', 1)) << "<br />";
-			oss << QString("%1: %2").arg(q_("Albedo"), QString::number(getAlbedo(), 'f', 3)) << "<br />";
-
+			QString moonPhase = "";
 			if (englishName=="Moon" && onEarth)
 			{
 				// For compute the Moon age we use geocentric coordinates
@@ -849,6 +845,14 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 				oss << QString("%1: %2/%3").arg(q_("Subsolar point"), StelUtils::radToDecDegStr(lo), StelUtils::radToDecDegStr(bop+bopp)) << "<br/>";
 				oss << QString("%1: %2").arg(q_("Colongitude"), StelUtils::radToDecDegStr(StelUtils::fmodpos(450.0*M_PI_180-lop-lopp, M_PI*2.0))) << "<br/>";
 			}
+
+			oss << QString("%1: %2").arg(q_("Phase angle"), pha) << "<br />";
+			oss << QString("%1: %2").arg(q_("Elongation"), elo) << "<br />";
+			oss << QString("%1: %2%").arg(q_("Illuminated"), QString::number(getPhase(observerHelioPos) * 100.f, 'f', 1));
+			if (!moonPhase.isEmpty())
+				oss << QString(" (%1)").arg(moonPhase);
+			oss << "<br />";
+			oss << QString("%1: %2").arg(q_("Albedo"), QString::number(getAlbedo(), 'f', 3)) << "<br />";
 		}
 
 		if (englishName=="Sun")
