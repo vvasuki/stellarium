@@ -937,9 +937,9 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			minorBodies << englishName;
 
 			Vec3f color = Vec3f(1.f, 1.f, 1.f);
-			const double bV = pd.value(secname+"/color_index_bv", 99.).toDouble();
-			if (bV<99.)
-				color = skyDrawer->indexToColor(BvToColorIndex(bV)); // color should have at least 1 element==1.
+			const float bV = pd.value(secname+"/color_index_bv", 99.f).toFloat();
+			if (bV<99.f)
+				color = skyDrawer->indexToColor(BvToColorIndex(bV))*0.75f; // FIXME why 0.75? color should probably have at least 1 element==1.
 			else
 				color = StelUtils::strToVec3f(pd.value(secname+"/color", "1.0,1.0,1.0").toString());
 
@@ -977,7 +977,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 					mp->setAbsoluteMagnitudeAndSlope(magnitude, qBound(0.0f, slope, 1.0f));
 			}
 
-			mp->setColorIndexBV(static_cast<float>(bV));
+			mp->setColorIndexBV(bV);
 			mp->setSpectralType(pd.value(secname+"/spec_t", "").toString(), pd.value(secname+"/spec_b", "").toString());
 			if (semi_major_axis>0)
 				mp->deltaJDE = 2.0*semi_major_axis*StelCore::JD_SECOND;
@@ -993,7 +993,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 					      pd.value(secname+"/radius", 1.0).toDouble()/AU,
 					      pd.value(secname+"/oblateness", 0.0).toDouble(),
 					      StelUtils::strToVec3f(pd.value(secname+"/color", "1.0,1.0,1.0").toString()), // halo color
-					      pd.value(secname+"/albedo", 0.075f).toFloat(), // assume very dark surface
+					      pd.value(secname+"/albedo", 0.075f).toFloat(), // 0.20+: New default: assume very dark surface
 					      pd.value(secname+"/roughness",0.9f).toFloat(),
 					      pd.value(secname+"/outgas_intensity",0.1f).toFloat(),
 					      pd.value(secname+"/outgas_falloff", 0.1f).toFloat(),

@@ -278,7 +278,7 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 	}
 
 
-	if ((flags&Size) && (tailFactors[0]>0.0))
+	if ((flags&Size) && (tailFactors[0]>0.0f))
 	{
 		// GZ: Add estimates for coma diameter and tail length.
 		QString comaEst = q_("Coma diameter (estimate)");
@@ -320,8 +320,8 @@ QString Comet::getInfoString(const StelCore *core, const InfoStringGroup &flags)
 QVariantMap Comet::getInfoMap(const StelCore *core) const
 {
 	QVariantMap map = Planet::getInfoMap(core);
-	map.insert("tail-length-km", tailFactors[1]*AU);
-	map.insert("coma-diameter-km", tailFactors[0]*AU);
+	map.insert("tail-length-km", tailFactors[1]*AUf);
+	map.insert("coma-diameter-km", tailFactors[0]*AUf);
 
 	return map;
 }
@@ -386,7 +386,7 @@ void Comet::update(int deltaTime)
 			tailFactors=getComaDiameterAndTailLengthAU();
 
 			// Note that we use a diameter larger than what the formula returns. A scale factor of 1.2 is ad-hoc/empirical (GZ), but may look better.
-			computeComa(1.0f*static_cast<float>(tailFactors[0])); // TBD: APPARENTLY NO SCALING? REMOVE 1.0 and note above.
+			computeComa(1.0f*tailFactors[0]); // TBD: APPARENTLY NO SCALING? REMOVE 1.0 and note above.
 
 			tailActive = (tailFactors[1] > tailFactors[0]); // Inhibit tails drawing if too short. Would be nice to include geometric projection angle, but this is too costly.
 
@@ -455,7 +455,7 @@ void Comet::update(int deltaTime)
 
 	// Separate factors, but avoid overly bright tails. I limit to about 0.7 for overlapping both tails which should not exceed full-white.
 	float gasMagFactor=qMin(0.9f*aLum, 0.7f);
-	float dustMagFactor=qMin(static_cast<float>(dustTailBrightnessFactor)*aLum, 0.7f);
+	float dustMagFactor=qMin(dustTailBrightnessFactor*aLum, 0.7f);
 
 	// TODO: Maybe make gas color distance dependent? (various typical ingredients outgas at different temperatures...)
 	Vec3f gasColor(0.15f*gasMagFactor,0.35f*gasMagFactor,0.6f*gasMagFactor); // Orig color 0.15/0.15/0.6.
