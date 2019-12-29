@@ -73,14 +73,13 @@ MinorPlanet::MinorPlanet(const QString& englishName,
 		  pTypeStr),
 	minorPlanetNumber(0),
 	slopeParameter(-10.0f), // -10 == mark as uninitialized: used in getVMagnitude()
-	//semiMajorAxis(0.),
 	nameIsProvisionalDesignation(false),
 	properName(englishName),
 	b_v(99.f),
 	specT(""),
 	specB("")
 {
-	//Try to detect a naming conflict
+	//Try to detect a naming conflict. FIXME: What is the application of this? Do we need properName at all, in addition to englishName?
 	if (englishName.endsWith('*'))
 		properName = englishName.left(englishName.count() - 1);
 
@@ -108,13 +107,6 @@ void MinorPlanet::setColorIndexBV(float bv)
 {
 	b_v = bv;
 }
-
-//void MinorPlanet::setSemiMajorAxis(double value)
-//{
-//	semiMajorAxis = value;
-//	// GZ: in case we have very many asteroids, this helps improving speed usually without sacrificing accuracy:
-//	deltaJDE = 2.0*qMax(semiMajorAxis, 0.1)*StelCore::JD_SECOND;
-//}
 
 void MinorPlanet::setMinorPlanetNumber(int number)
 {
@@ -148,20 +140,12 @@ void MinorPlanet::setProvisionalDesignation(QString designation)
 
 QString MinorPlanet::getEnglishName() const
 {
-	QString r = englishName;
-	if (minorPlanetNumber)
-		r = QString("(%1) %2").arg(minorPlanetNumber).arg(englishName);
-
-	return r;
+	return (minorPlanetNumber ? QString("(%1) %2").arg(minorPlanetNumber).arg(englishName) : englishName);
 }
 
 QString MinorPlanet::getNameI18n() const
 {
-	QString r = nameI18;
-	if (minorPlanetNumber)
-		r = QString("(%1) %2").arg(minorPlanetNumber).arg(nameI18);
-
-	return r;
+	return (minorPlanetNumber ?  QString("(%1) %2").arg(minorPlanetNumber).arg(nameI18) : nameI18);
 }
 
 QString MinorPlanet::getInfoString(const StelCore *core, const InfoStringGroup &flags) const
@@ -387,7 +371,7 @@ QString MinorPlanet::getInfoString(const StelCore *core, const InfoStringGroup &
 
 double MinorPlanet::getSiderealPeriod() const
 {
-	return StelUtils::calculateSiderealPeriod(orbitPtr->getSemimajorAxis());
+	return KeplerOrbit::calculateSiderealPeriod(orbitPtr->getSemimajorAxis());
 }
 
 float MinorPlanet::getVMagnitude(const StelCore* core) const

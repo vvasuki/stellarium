@@ -654,7 +654,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			}
 		}
 
-		const QString coordFuncName = pd.value(secname+"/coord_func").toString();
+		const QString coordFuncName = pd.value(secname+"/coord_func", "kepler_orbit").toString(); // 0.20: Add a new default for all non *_special.
 		// qDebug() << "englishName:" << englishName << ", parent:" << strParent <<  ", coord_func:" << coordFuncName;
 		posFuncType posfunc=Q_NULLPTR;
 		KeplerOrbit* orbitPtr=Q_NULLPTR;
@@ -662,7 +662,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 		bool closeOrbit = true;
 		double semi_major_axis=0; // used again below.
 
-		if ((coordFuncName=="ell_orbit") || (coordFuncName=="comet_orbit")) // ell_orbit used for planet moons. TODO: rename to kepler_orbit for all!
+		if ((coordFuncName=="ell_orbit") || (coordFuncName=="comet_orbit") || (coordFuncName=="kepler_orbit")) // ell_orbit used for planet moons. TODO: rename to kepler_orbit for all!
 		{
 			// ell_orbit was used for planet moons, comet_orbit for minor bodies. The only difference is that pericenter distance for moons is given in km, not AU.
 			// Read the orbital elements
@@ -849,10 +849,8 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			else
 				color = StelUtils::strToVec3f(pd.value(secname+"/color", "1.0,1.0,1.0").toString());
 
-			QString normalMapName = "";
-			bool hidden = pd.value(secname+"/hidden", false).toBool();
-			if (!hidden) // no normal maps for invisible objects!
-				normalMapName = englishName.toLower().append("_normals.png");
+			const bool hidden = pd.value(secname+"/hidden", false).toBool();
+			const QString normalMapName = ( hidden ? "" : englishName.toLower().append("_normals.png")); // no normal maps for invisible objects!
 
 			p = PlanetP(new MinorPlanet(englishName,
 						    pd.value(secname+"/radius", 1.0).toDouble()/AU,
@@ -957,7 +955,6 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 				p->setIAUMoonNumber(moonDesignation);
 			}
 		}
-
 
 		if (!parent.isNull())
 		{

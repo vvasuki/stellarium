@@ -329,7 +329,7 @@ QVariantMap Comet::getInfoMap(const StelCore *core) const
 double Comet::getSiderealPeriod() const
 {
 	const double semiMajorAxis=orbitPtr->getSemimajorAxis();
-	return ((semiMajorAxis>0) ? StelUtils::calculateSiderealPeriod(semiMajorAxis) : 0.);
+	return ((semiMajorAxis>0) ? KeplerOrbit::calculateSiderealPeriod(semiMajorAxis) : 0.);
 }
 
 float Comet::getVMagnitude(const StelCore* core) const

@@ -487,8 +487,8 @@ namespace StelUtils
 	}
 	*/
 
-	//! Calculate and return sidereal period in days from semi-major axis (in AU)
-	double calculateSiderealPeriod(const double SemiMajorAxis);
+	// Calculate and return sidereal period in days from semi-major axis (in AU)
+	//double calculateSiderealPeriod(const double SemiMajorAxis);  MOVED TO Orbit.h
 
 	//! Convert decimal hours to hours, minutes, seconds
 	QString hoursToHmsStr(const double hours, const bool lowprecision = false);

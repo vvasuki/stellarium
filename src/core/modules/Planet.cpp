@@ -430,8 +430,6 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 			oss << QString("(134340) ");
 		}
 		oss << getNameI18n();  // UI translation can differ from sky translation
-		if (!iauMoonNumber.isEmpty())
-			oss << QString(" (%1)").arg(iauMoonNumber);
 		oss.setRealNumberNotation(QTextStream::FixedNotation);
 		oss.setRealNumberPrecision(1);
 		if (sphereScale != 1.)
