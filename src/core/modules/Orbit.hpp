@@ -4,6 +4,7 @@
 //
 // CometOrbit: Copyright (C) 2007,2008 Johannes Gajdosik
 //             Amendments (c) 2013 Georg Zotti
+//             Recombined to KeplerOrbit (c) 2019 Georg Zotti
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License
@@ -16,7 +17,7 @@
 #include "VecMath.hpp"
 
 //! @internal
-//! Orbit computations used for comet and asteroids
+//! Orbit computations used for comets, minor planets and "simple" moons
 class Orbit
 {
 public:
@@ -27,7 +28,7 @@ private:
     const Orbit &operator=(const Orbit&);
 };
 
-
+/*
 class EllipticalOrbit : public Orbit
 {
 public:
@@ -69,12 +70,12 @@ private:
 	double epoch;
 	double rotateToVsop87[9];
 };
+*/
 
-
-// This class could be renamed to KeplerOrbit, and maybe recombined with Elliptical orbit.
-class CometOrbit : public Orbit {
+// This class was called CometOrbit, but was now recombined with the former EllipticalOrbit class. They did almost the same.
+class KeplerOrbit : public Orbit {
 public:
-	CometOrbit(double pericenterDistance,
+	KeplerOrbit(double pericenterDistance,
 		   double eccentricity,
 		   double inclination,
 		   double ascendingNode,
@@ -88,7 +89,7 @@ public:
 		   );
 	// Compute the orbit for a specified Julian day and return a "stellarium compliant" function
 	// GZ: new optional variable: updateVelocityVector, true required for dust tail orientation!
-	void positionAtTimevInVSOP87Coordinates(double JDE, double* v, bool updateVelocityVector=true);
+	void positionAtTimevInVSOP87Coordinates(double JDE, double* v);
 	// updating the tails is a bit expensive. try not to overdo it.
 	bool getUpdateTails() const { return updateTails; }
 	void setUpdateTails(const bool update){ updateTails=update; }
@@ -97,7 +98,7 @@ public:
 	void getVelocity(double *vel) const { vel[0]=rdot[0]; vel[1]=rdot[1]; vel[2]=rdot[2];}
 	double getSemimajorAxis() const { return (e==1. ? 0. : q / (1.-e)); } //! Returns semimajor axis [AU] for elliptic orbit, 0 for a parabolic orbit, and a negative value for hyperbolic orbit.
 	double getEccentricity() const { return e; }
-	bool objectDateValid(const double JDE) const { return (fabs(t0-JDE)<orbitGood); }
+	bool objectDateValid(const double JDE) const { return ((orbitGood<=0) || (fabs(t0-JDE)<orbitGood)); }
 
 private:
 	const double q;  //! perihel distance
@@ -110,7 +111,7 @@ private:
 	Vec3d rdot;      //! GZ: velocity vector. Caches velocity from last position computation, [AU/d]
 	double rotateToVsop87[9]; //! Rotation matrix
 	bool updateTails; //! flag to signal that tails must be recomputed.
-	const double orbitGood; //! orb. elements are only valid for this time from perihel [days]. Don't draw the object outside.
+	const double orbitGood; //! orb. elements are only valid for this time from perihel [days]. Don't draw the object outside. Values <=0 mean "always good" (objects on elliptic orbit)
 };
 
 #endif // ORBIT_HPP

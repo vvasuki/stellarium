@@ -440,16 +440,10 @@ void SolarSystem::drawPointer(const StelCore* core)
 	}
 }
 
-void ellipticalOrbitPosFunc(double jd,double xyz[3], double xyzdot[3], void* orbitPtr)
+void keplerOrbitPosFunc(double jd,double xyz[3], double xyzdot[3], void* orbitPtr)
 {
-	static_cast<EllipticalOrbit*>(orbitPtr)->positionAtTimevInVSOP87Coordinates(jd, xyz);
-	// TODO: Implement a way to retrieve velocities.
-	xyzdot[0]=xyzdot[1]=xyzdot[2]=0.0;
-}
-void cometOrbitPosFunc(double jd,double xyz[3], double xyzdot[3], void* orbitPtr)
-{
-	static_cast<CometOrbit*>(orbitPtr)->positionAtTimevInVSOP87Coordinates(jd, xyz, true);
-	static_cast<CometOrbit*>(orbitPtr)->getVelocity(xyzdot);
+	static_cast<KeplerOrbit*>(orbitPtr)->positionAtTimevInVSOP87Coordinates(jd, xyz);
+	static_cast<KeplerOrbit*>(orbitPtr)->getVelocity(xyzdot);
 }
 
 // Init and load the solar system data (2 files)
@@ -654,7 +648,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 			}
 			if (parent.isNull())
 			{
-				qWarning() << "ERROR : can't find parent solar system body for " << englishName;
+				qWarning() << "ERROR : can't find parent solar system body for " << englishName << ". Skipping.";
 				//abort();
 				continue;
 			}
@@ -663,56 +657,57 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 		const QString coordFuncName = pd.value(secname+"/coord_func").toString();
 		// qDebug() << "englishName:" << englishName << ", parent:" << strParent <<  ", coord_func:" << coordFuncName;
 		posFuncType posfunc=Q_NULLPTR;
-		void* orbitPtr=Q_NULLPTR;
+		KeplerOrbit* orbitPtr=Q_NULLPTR;
 		OsculatingFunctType *osculatingFunc = Q_NULLPTR;
-		bool closeOrbit = true; //  = pd.value(secname+"/closeOrbit", true).toBool();   2017: THIS ENTRY NO LONGER EXISTS!
+		bool closeOrbit = true;
 		double semi_major_axis=0; // used again below.
 
-		if (coordFuncName=="ell_orbit") // used for planet moons. TODO: rename to moon_orbit
+		if ((coordFuncName=="ell_orbit") || (coordFuncName=="comet_orbit")) // ell_orbit used for planet moons. TODO: rename to kepler_orbit for all!
 		{
-			// GZ TODO: It seems ell_orbit is only used for planet moons. Just assert eccentricity<1 and remove a few extra calculations?
+			// ell_orbit was used for planet moons, comet_orbit for minor bodies. The only difference is that pericenter distance for moons is given in km, not AU.
 			// Read the orbital elements
 			const double eccentricity = pd.value(secname+"/orbit_Eccentricity", 0.0).toDouble();
-			if (eccentricity >= 1.0)
-			{
-				closeOrbit = false;
-				qWarning() << "SolarSystem::loadPlanets() Planet moon" << englishName << "with eccentricity >=1 found. This is obviously a data error.";
-			}
-			double pericenterDistance = pd.value(secname+"/orbit_PericenterDistance",-1e100).toDouble();
+			if (eccentricity >= 1.0) closeOrbit = false;
+			double pericenterDistance = pd.value(secname+"/orbit_PericenterDistance",-1e100).toDouble(); // AU, or km for ell_orbit!
 			if (pericenterDistance <= 0.0) {
 				semi_major_axis = pd.value(secname+"/orbit_SemiMajorAxis",-1e100).toDouble();
 				if (semi_major_axis <= -1e100) {
 					qDebug() << "ERROR loading " << englishName
-						 << ": you must provide orbit_PericenterDistance or orbit_SemiMajorAxis";
+						 << ": you must provide orbit_PericenterDistance or orbit_SemiMajorAxis. Skipping " << englishName;
 					continue;
 				} else {
-					semi_major_axis /= AU;
 					Q_ASSERT(eccentricity != 1.0); // parabolic orbits have no semi_major_axis
 					pericenterDistance = semi_major_axis * (1.0-eccentricity);
 				}
 			} else {
-				pericenterDistance /= AU;
 				semi_major_axis = (eccentricity == 1.0)
 								? 0.0 // parabolic orbits have no semi_major_axis
 								: pericenterDistance / (1.0-eccentricity);
 			}
-			double meanMotion = pd.value(secname+"/orbit_MeanMotion",-1e100).toDouble();
-			double period;
+			if (parent->englishName!="Sun")
+				pericenterDistance /= AU;  // Planet moons have distances given in km in the .ini file! But all further computation done in AU.
+
+			double meanMotion = pd.value(secname+"/orbit_MeanMotion",-1e100).toDouble(); // degrees/day
 			if (meanMotion <= -1e100) {
-				period = pd.value(secname+"/orbit_Period",-1e100).toDouble();
+				const double period = pd.value(secname+"/orbit_Period",-1e100).toDouble();
 				if (period <= -1e100) {
-					meanMotion = (eccentricity == 1.0)
-								? 0.01720209895 * (1.5/pericenterDistance) * std::sqrt(0.5/pericenterDistance)
-								: (semi_major_axis > 0.0)
-								? 0.01720209895 / (semi_major_axis*std::sqrt(semi_major_axis))
-								: 0.01720209895 / (-semi_major_axis*std::sqrt(-semi_major_axis));
-					period = 2.0*M_PI/meanMotion;
+					if (parent->getParent()) {
+						qWarning() << "ERROR: " << englishName
+							   << ": when the parent body is not the sun, you must provide "
+							   << "either orbit_MeanMotion or orbit_Period";
+					} else {
+						// in case of parent=sun: use Gaussian gravitational constant for calculating meanMotion:
+						meanMotion = (eccentricity == 1.0)
+									? 0.01720209895 * (1.5/pericenterDistance) * std::sqrt(0.5/pericenterDistance)  // GZ: This is Heafner's W / dt
+									: 0.01720209895 / (fabs(semi_major_axis)*std::sqrt(fabs(semi_major_axis)));
+					}
 				} else {
 					meanMotion = 2.0*M_PI/period;
 				}
 			} else {
-				period = 2.0*M_PI/meanMotion;
+				meanMotion *= (M_PI/180.0);
 			}
+
 			const double ascending_node = pd.value(secname+"/orbit_AscendingNode", 0.0).toDouble()*(M_PI/180.0);
 			double arg_of_pericenter = pd.value(secname+"/orbit_ArgOfPericenter",-1e100).toDouble();
 			double long_of_pericenter;
@@ -723,14 +718,24 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 				arg_of_pericenter *= (M_PI/180.0);
 				long_of_pericenter = arg_of_pericenter + ascending_node;
 			}
-			double mean_anomaly = pd.value(secname+"/orbit_MeanAnomaly",-1e100).toDouble();
-			double mean_longitude;
-			if (mean_anomaly <= -1e100) {
-				mean_longitude = pd.value(secname+"/orbit_MeanLongitude").toDouble()*(M_PI/180.0);
-				mean_anomaly = mean_longitude - long_of_pericenter;
-			} else {
-				mean_anomaly *= (M_PI/180.0);
-				mean_longitude = mean_anomaly + long_of_pericenter;
+
+			double time_at_pericenter = pd.value(secname+"/orbit_TimeAtPericenter",-1e100).toDouble();
+			if (time_at_pericenter <= -1e100) {
+				const double epoch = pd.value(secname+"/orbit_Epoch",J2000).toDouble();
+				double mean_anomaly = pd.value(secname+"/orbit_MeanAnomaly",-1e100).toDouble()*(M_PI/180.0);
+				if (mean_anomaly <= -1e10) {
+					double mean_longitude = pd.value(secname+"/orbit_MeanLongitude",-1e100).toDouble()*(M_PI/180.0);
+					if (mean_longitude <= -1e10) {
+						qWarning() << "ERROR: " << englishName
+							   << ": when you do not provide orbit_TimeAtPericenter, you must provide orbit_Epoch"
+							   << "and either one of orbit_MeanAnomaly or orbit_MeanLongitude. Skipping this object.";
+						//abort();
+						continue;
+					} else {
+						mean_anomaly = mean_longitude - long_of_pericenter;
+					}
+				}
+				time_at_pericenter = epoch - mean_anomaly / meanMotion;
 			}
 
 			// when the parent is the sun use ecliptic rather than sun equator:
@@ -751,124 +756,25 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 				parent_rot_j2000_longitude = atan2(J2000NodeOrigin*OrbitAxis1,J2000NodeOrigin*OrbitAxis0);
 			}
 
-			// Create an elliptical orbit
-			EllipticalOrbit *orb = new EllipticalOrbit(pericenterDistance,     // [AU]
+			const double orbitGoodDays=pd.value(secname+"/orbit_good", parent->englishName!="Sun" ? 0 : 1000).toDouble(); // "Moons" have permanently good orbits.
+			const double inclination = pd.value(secname+"/orbit_Inclination", 0.0).toDouble()*(M_PI/180.0);
+
+			// Create a Keplerian orbit. This has been called CometOrbit before 0.20.
+			KeplerOrbit *orb = new KeplerOrbit(pericenterDistance,     // [AU]
 								   eccentricity,           // 0..>1, but practically only 0..1
-								   pd.value(secname+"/orbit_Inclination", 0.0).toDouble()*(M_PI/180.0), // [radians]
+								   inclination,            // [radians]
 								   ascending_node,         // [radians]
 								   arg_of_pericenter,      // [radians]
-								   mean_anomaly,           // [radians]
-								   period,                 // [days]
-								   pd.value(secname+"/orbit_Epoch",J2000).toDouble(), // [JDE]
+								   time_at_pericenter,     // JD
+								   orbitGoodDays,          // orbitGoodDays. 0=always good.
+								   meanMotion,             // [radians/day]
 								   parentRotObliquity,     // [radians]
 								   parent_rot_asc_node,    // [radians]
-								   parent_rot_j2000_longitude);
+								   parent_rot_j2000_longitude); // [radians]
 			orbits.push_back(orb);
 
 			orbitPtr = orb;
-			posfunc = &ellipticalOrbitPosFunc;
-		}
-		else if (coordFuncName=="comet_orbit") // used for minor planets and comets, in orbit around the sun! TODO: rename to kepler_orbit
-		{
-			// Read the orbital elements
-			// orbit_PericenterDistance,orbit_SemiMajorAxis: given in AU
-			// orbit_MeanMotion: given in degrees/day
-			// orbit_Period: given in days
-			// orbit_TimeAtPericenter,orbit_Epoch: JD
-			// orbit_MeanAnomaly,orbit_Inclination,orbit_ArgOfPericenter,orbit_AscendingNode: given in degrees
-			const double eccentricity = pd.value(secname+"/orbit_Eccentricity",0.0).toDouble();
-			if (eccentricity >= 1.0) closeOrbit = false;
-			double pericenterDistance = pd.value(secname+"/orbit_PericenterDistance",-1e100).toDouble();
-			if (pericenterDistance <= 0.0) {
-				semi_major_axis = pd.value(secname+"/orbit_SemiMajorAxis",-1e100).toDouble();
-				if (semi_major_axis <= -1e100) {
-					qWarning() << "ERROR: " << englishName
-						   << ": you must provide orbit_PericenterDistance or orbit_SemiMajorAxis";
-					//abort();
-					continue;
-				} else {
-					Q_ASSERT(eccentricity != 1.0); // parabolic orbits have no semi_major_axis
-					pericenterDistance = semi_major_axis * (1.0-eccentricity);
-				}
-			} else {
-				semi_major_axis = (eccentricity == 1.0)
-								? 0.0 // parabolic orbits have no semi_major_axis
-								: pericenterDistance / (1.0-eccentricity);
-			}
-			double meanMotion = pd.value(secname+"/orbit_MeanMotion",-1e100).toDouble();
-			if (meanMotion <= -1e100) {
-				const double period = pd.value(secname+"/orbit_Period",-1e100).toDouble();
-				if (period <= -1e100) {
-					if (parent->getParent()) {
-						qWarning() << "ERROR: " << englishName
-							   << ": when the parent body is not the sun, you must provide "
-							   << "either orbit_MeanMotion or orbit_Period";
-					} else {
-						// in case of parent=sun: use Gaussian gravitational constant for calculating meanMotion:
-						meanMotion = (eccentricity == 1.0)
-									? 0.01720209895 * (1.5/pericenterDistance) * std::sqrt(0.5/pericenterDistance)  // GZ: This is Heafner's W / dt
-									: 0.01720209895 / (fabs(semi_major_axis)*std::sqrt(fabs(semi_major_axis)));
-					}
-				} else {
-					meanMotion = 2.0*M_PI/period;
-				}
-			} else {
-				meanMotion *= (M_PI/180.0);
-			}
-			double time_at_pericenter = pd.value(secname+"/orbit_TimeAtPericenter",-1e100).toDouble();
-			if (time_at_pericenter <= -1e100) {
-				const double epoch = pd.value(secname+"/orbit_Epoch",J2000).toDouble(); // prev. default -1e100
-				double mean_anomaly = pd.value(secname+"/orbit_MeanAnomaly",-1e100).toDouble();
-				if (epoch <= -1e100 || mean_anomaly <= -1e100) {
-					qWarning() << "ERROR: " << englishName
-						   << ": when you do not provide orbit_TimeAtPericenter, you must provide both "
-						   << "orbit_Epoch and orbit_MeanAnomaly";
-					//abort();
-					continue;
-				} else {
-					mean_anomaly *= (M_PI/180.0);
-					time_at_pericenter = epoch - mean_anomaly / meanMotion;
-				}
-			}
-
-			const double orbitGoodDays=pd.value(secname+"/orbit_good", 1000).toDouble();
-			const double inclination = pd.value(secname+"/orbit_Inclination", 0.0).toDouble()*(M_PI/180.0);
-			const double arg_of_pericenter = pd.value(secname+"/orbit_ArgOfPericenter", 0.0).toDouble()*(M_PI/180.0);
-			const double ascending_node = pd.value(secname+"/orbit_AscendingNode", 0.0).toDouble()*(M_PI/180.0);
-			const double parentRotObliquity = parent->getParent() ? parent->getRotObliquity(2451545.0) : 0.0;
-			const double parent_rot_asc_node = parent->getParent() ? parent->getRotAscendingNode() : 0.0;
-			double parent_rot_j2000_longitude = 0.0;
-			Q_ASSERT(parent->getParent()==Q_NULLPTR);
-			if (parent->getParent()) {
-				Q_ASSERT(0); // Just to be sure it's DEAD CODE?
-				qDebug() << "Really? A comet orbiting " << pd.value("parent") << "has a greatparent?";
-				const double c_obl = cos(parentRotObliquity);
-				const double s_obl = sin(parentRotObliquity);
-				const double c_nod = cos(parent_rot_asc_node);
-				const double s_nod = sin(parent_rot_asc_node);
-				const Vec3d OrbitAxis0( c_nod,       s_nod,        0.0);
-				const Vec3d OrbitAxis1(-s_nod*c_obl, c_nod*c_obl,s_obl);
-				const Vec3d OrbitPole(  s_nod*s_obl,-c_nod*s_obl,c_obl);
-				const Vec3d J2000Pole(StelCore::matJ2000ToVsop87.multiplyWithoutTranslation(Vec3d(0,0,1)));
-				Vec3d J2000NodeOrigin(J2000Pole^OrbitPole);
-				J2000NodeOrigin.normalize();
-				parent_rot_j2000_longitude = atan2(J2000NodeOrigin*OrbitAxis1,J2000NodeOrigin*OrbitAxis0);
-			}
-			//qDebug() << "Creating CometOrbit for" << englishName;
-			CometOrbit *orb = new CometOrbit(pericenterDistance,
-							 eccentricity,
-							 inclination,
-							 ascending_node,
-							 arg_of_pericenter,
-							 time_at_pericenter,
-							 orbitGoodDays,
-							 meanMotion,
-							 parentRotObliquity,
-							 parent_rot_asc_node,
-							 parent_rot_j2000_longitude);
-			orbits.push_back(orb);
-			orbitPtr = orb;
-			posfunc = &cometOrbitPosFunc;
+			posfunc = &keplerOrbitPosFunc;
 		}
 		else {
 			static const QMap<QString, posFuncType>posfuncMap={
@@ -959,7 +865,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 						    pd.value(secname+"/model").toString(),
 						    posfunc,
 						    orbitPtr, // the CometOrbit object created previously
-						    osculatingFunc,
+						    osculatingFunc, // should be Q_NULLPTR
 						    closeOrbit,
 						    hidden,
 						    type));
@@ -1035,7 +941,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 					       pd.value(secname+"/normals_map", englishName.toLower().append("_normals.png")).toString(),
 					       pd.value(secname+"/model").toString(),
 					       posfunc,
-					       orbitPtr, // This remains NULL for the major planets, or has an EllipticalOrbit for planet moons.
+					       orbitPtr, // This remains Q_NULLPTR for the major planets, or has a KeplerOrbit for planet moons.
 					       osculatingFunc,
 					       closeOrbit,
 					       pd.value(secname+"/hidden", false).toBool(),
@@ -1216,7 +1122,7 @@ void SolarSystem::computePositions(double dateJDE, PlanetP observerPlanet)
 // The elements have to be ordered hierarchically, eg. it's important to compute earth before moon.
 void SolarSystem::computeTransMatrices(double dateJDE, const Vec3d& observerPos)
 {
-	double dateJD=dateJDE - (StelApp::getInstance().getCore()->computeDeltaT(dateJDE))/86400.0;
+	const double dateJD=dateJDE - (StelApp::getInstance().getCore()->computeDeltaT(dateJDE))/86400.0;
 
 	if (flagLightTravelTime)
 	{
@@ -1306,7 +1212,7 @@ Vec3f SolarSystem::getEphemerisMarkerColor(int index) const
 
 void SolarSystem::drawEphemerisMarkers(const StelCore *core)
 {
-	int fsize = AstroCalcDialog::EphemerisList.count();
+	const int fsize = AstroCalcDialog::EphemerisList.count();
 	if (fsize>0) // The array of data is not empty - good news!
 	{
 		StelProjectorP prj;
@@ -1317,10 +1223,10 @@ void SolarSystem::drawEphemerisMarkers(const StelCore *core)
 		StelPainter sPainter(prj);
 
 		float size, shift, baseSize = 4.f;
-		bool showDates = getFlagEphemerisDates();
-		bool showMagnitudes = getFlagEphemerisMagnitudes();
-		bool showSkippedData = getFlagEphemerisSkipData();
-		int dataStep = getEphemerisDataStep();
+		const bool showDates = getFlagEphemerisDates();
+		const bool showMagnitudes = getFlagEphemerisMagnitudes();
+		const bool showSkippedData = getFlagEphemerisSkipData();
+		const int dataStep = getEphemerisDataStep();
 		QString info = "";
 		Vec3d win;
 		Vec3f colorMarker;
@@ -1370,7 +1276,7 @@ void SolarSystem::drawEphemerisMarkers(const StelCore *core)
 
 void SolarSystem::drawEphemerisLine(const StelCore *core)
 {
-	int size = AstroCalcDialog::EphemerisList.count();
+	const int size = AstroCalcDialog::EphemerisList.count();
 	if (size>0) // The array of data is not empty - good news!
 	{
 		StelProjectorP prj;
@@ -1388,7 +1294,7 @@ void SolarSystem::drawEphemerisLine(const StelCore *core)
 			if (AstroCalcDialog::EphemerisList[0].colorIndex!=AstroCalcDialog::EphemerisList[size-1].colorIndex)
 			{
 				// Oops... the color of first 3 items are different - looks like we got 5 planets on sky!
-				int nsize = static_cast<int>(size/5);
+				const int nsize = static_cast<int>(size/5);
 				vertexArray.resize(nsize);
 				colorArray.resize(nsize);
 				for (int j=0; j<5; j++)
@@ -1420,15 +1326,13 @@ void SolarSystem::drawEphemerisLine(const StelCore *core)
 
 void SolarSystem::fillEphemerisDates()
 {
-	int fsize = AstroCalcDialog::EphemerisList.count();
+	const int fsize = AstroCalcDialog::EphemerisList.count();
 	if (fsize>0) // The array of data is not empty - good news!
 	{
 		StelLocaleMgr* localeMgr = &StelApp::getInstance().getLocaleMgr();
-		bool showSmartDates = getFlagEphemerisSmartDates();
+		const bool showSmartDates = getFlagEphemerisSmartDates();
 		double JD = AstroCalcDialog::EphemerisList.first().objDate;
-		bool withTime = false;
-		if (fsize>1 && (AstroCalcDialog::EphemerisList[1].objDate-JD<1.0))
-			withTime = true;
+		bool withTime = (fsize>1 && (AstroCalcDialog::EphemerisList[1].objDate-JD<1.0));
 
 		int fYear, fMonth, fDay, sYear, sMonth, sDay, h, m, s;
 		QString info;
@@ -1438,8 +1342,8 @@ void SolarSystem::fillEphemerisDates()
 		sYear = fYear;
 		sMonth = fMonth;
 		sDay = fDay;
-		bool showSkippedData = getFlagEphemerisSkipData();
-		int dataStep = getEphemerisDataStep();
+		const bool showSkippedData = getFlagEphemerisSkipData();
+		const int dataStep = getEphemerisDataStep();
 
 		for (int i = 0; i < fsize; i++)
 		{

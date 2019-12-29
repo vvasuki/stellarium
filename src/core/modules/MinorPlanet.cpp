@@ -47,7 +47,7 @@ MinorPlanet::MinorPlanet(const QString& englishName,
 			 const QString& anormalMapName,
 			 const QString& aobjModelName,
 			 posFuncType coordFunc,
-			 void* auserDataPtr,
+			 KeplerOrbit* orbitPtr,
 			 OsculatingFunctType *osculatingFunc,
 			 bool acloseOrbit,
 			 bool hidden,
@@ -64,7 +64,7 @@ MinorPlanet::MinorPlanet(const QString& englishName,
 		  anormalMapName,
 		  aobjModelName,
 		  coordFunc,
-		  auserDataPtr,
+		  orbitPtr,
 		  osculatingFunc,
 		  acloseOrbit,
 		  hidden,
@@ -387,14 +387,7 @@ QString MinorPlanet::getInfoString(const StelCore *core, const InfoStringGroup &
 
 double MinorPlanet::getSiderealPeriod() const
 {
-//	double period;
-//	if (semiMajorAxis>0)
-//		period = StelUtils::calculateSiderealPeriod(semimajorAxis);
-//	else
-//		period = 0;
-
-//	return period;
-	return StelUtils::calculateSiderealPeriod(((CometOrbit*)orbitPtr)->getSemimajorAxis());
+	return StelUtils::calculateSiderealPeriod(orbitPtr->getSemimajorAxis());
 }
 
 float MinorPlanet::getVMagnitude(const StelCore* core) const
