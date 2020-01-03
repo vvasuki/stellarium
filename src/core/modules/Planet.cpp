@@ -477,7 +477,7 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 		oss << q_("DEBUG: Sidereal Time of Prime Meridian (angle W): %1°").arg(QString::number(getSiderealTime(core->getJD(), core->getJDE()), 'f', 3)) << "<br>";
 		oss << q_("DEBUG: Axis (RA/Dec): %1°/%2°").arg(QString::number(getCurrentAxisRA()*M_180_PI, 'f', 6), QString::number(getCurrentAxisDE()*M_180_PI, 'f', 6)) << "<br>";
 		oss << q_("DEBUG: RotObliquity: %1°").arg(QString::number(re.obliquity*M_180_PI, 'f', 6)) << "<br>";
-
+/*
 		oss << QString("DEBUG:  E1: %1  E2: %2  E3: %3  E4: %4  E5: %5\n").arg(StelUtils::radToDecDegStr(Planet::planetCorrections.E1))
 		       .arg(StelUtils::radToDecDegStr(Planet::planetCorrections.E2))
 		       .arg(StelUtils::radToDecDegStr(Planet::planetCorrections.E3))
@@ -529,7 +529,7 @@ QString Planet::getInfoString(const StelCore* core, const InfoStringGroup& flags
 		       .arg(StelUtils::radToDecDegStr(Planet::planetCorrections.N5))
 		       .arg(StelUtils::radToDecDegStr(Planet::planetCorrections.N6))
 		       .arg(StelUtils::radToDecDegStr(Planet::planetCorrections.N7)) << "<br>";
-
+*/
 		oss << QString("DEBUG: rotLocalToParent= <table><tr><td>%1</td><td>%2</td><td>%3</td><td>%4</td></tr>")
 			.arg(QString::number(rotLocalToParent[0], 'f', 7))
 			.arg(QString::number(rotLocalToParent[1], 'f', 7))
@@ -2885,7 +2885,7 @@ void Planet::draw3dModel(StelCore* core, StelProjector::ModelViewTranformP trans
 			r+=rings->getSize();
 
 		const double dist = getEquinoxEquatorialPos(core).length();
-		const double z_near = qMax(0.0, (dist - r)); //near Z should be as close as possible to the actual geometry
+		const double z_near = qMax(0.0001, (dist - r)); //near Z should be as close as possible to the actual geometry
 		const double z_far  = (dist + 10*r); //far Z should be quite a bit further behind (Z buffer accuracy is worse near the far plane)
 		core->setClippingPlanes(z_near,z_far);
 
