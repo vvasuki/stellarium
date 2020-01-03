@@ -256,8 +256,8 @@ public:
 
 public slots:
 	//! Allow additions to the Info String. Can be used by plugins to show extra info for the selected object, or for debugging.
-	//! Hard-set this string to str
-	//! @deprecated This should no longer be used.
+	//! Hard-set this string group to a single str, or delete all messages when str==""
+	//! @note This should be used with caution.
 	virtual void setExtraInfoString(const InfoStringGroup flags, const QString &str);
 	//! Add str to the extra string. This should be preferrable over hard setting.
 	virtual void addToExtraInfoString(const StelObject::InfoStringGroup flags, const QString &str);
