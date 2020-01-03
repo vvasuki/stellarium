@@ -1004,7 +1004,7 @@ bool SolarSystem::loadPlanets(const QString& filePath)
 		const double J2000NPoleW0  = pd.value(secname+"/rot_pole_w0",  0.).toDouble(); // stays in degrees! Basically the same idea as rot_rotation_offset.
 		const double J2000NPoleW1  = pd.value(secname+"/rot_pole_w1",  0.).toDouble(); // stays in degrees! Basically the same idea as 360/rot_periode
 
-		double rotPeriod=pd.value(secname+"/rot_periode", pd.value(secname+"/orbit_Period", 24.).toDouble()).toDouble()/24.;
+		double rotPeriod=pd.value(secname+"/rot_periode", pd.value(secname+"/orbit_Period", 1.).toDouble()*24.).toDouble()/24.;
 		double rotOffset=pd.value(secname+"/rot_rotation_offset",0.).toDouble();
 
 		if((J2000NPoleRA!=0.) || (J2000NPoleDE!=0.))
@@ -1775,6 +1775,7 @@ void SolarSystem::update(double deltaTime)
 
 	for (const auto& p : systemPlanets)
 	{
+		p->setExtraInfoString(StelObject::DebugAid, "");
 		p->update(static_cast<int>(deltaTime*1000));
 	}
 }
